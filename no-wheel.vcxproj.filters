@@ -49,6 +49,12 @@
     <Image Include="circle-48.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="circle-32.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="circle-16.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="no-wheel.rc">

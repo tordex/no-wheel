@@ -1,8 +1,52 @@
 #include "globals.h"
 
-HHOOK hHook = 0;
+HHOOK hMouseHook = 0;
+HHOOK hKbdHook = 0;
 int diff = 0;
 
+LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (nCode >= 0)
+	{
+		LPKBDLLHOOKSTRUCT hookData = (LPKBDLLHOOKSTRUCT)lParam;
+		switch (wParam)
+		{
+		case WM_KEYDOWN:
+			if (LCLickVK() == hookData->vkCode)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				mouse_event(MOUSEEVENTF_LEFTDOWN, ptCursor.x, ptCursor.y, 0, NULL);
+				return TRUE;
+			}
+			else if (RCLickVK() == hookData->vkCode)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				mouse_event(MOUSEEVENTF_RIGHTDOWN, ptCursor.x, ptCursor.y, 0, NULL);
+				return TRUE;
+			}
+			break;
+		case WM_KEYUP:
+			if (LCLickVK() == hookData->vkCode)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				mouse_event(MOUSEEVENTF_LEFTUP, ptCursor.x, ptCursor.y, 0, NULL);
+				return TRUE;
+			}
+			else if (RCLickVK() == hookData->vkCode)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				mouse_event(MOUSEEVENTF_RIGHTUP, ptCursor.x, ptCursor.y, 0, NULL);
+				return TRUE;
+			}
+			break;
+		}
+	}
+	return CallNextHookEx(hKbdHook, nCode, wParam, lParam);
+}
 
 LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
@@ -42,27 +86,33 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 		}
 	}
 
-	return CallNextHookEx(hHook, nCode, wParam, lParam);
+	return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
 }
 
 void start_hook()
 {
 	diff = 0;
-	hHook = SetWindowsHookEx(WH_MOUSE_LL, MouseHookProc, NULL, 0);
+	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseHookProc, NULL, 0);
+	hKbdHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardHookProc, NULL, 0);
 }
 
 void stop_hook()
 {
-	if(hHook)
+	if (hMouseHook)
 	{
-		UnhookWindowsHookEx(hHook);
-		hHook = NULL;
+		UnhookWindowsHookEx(hMouseHook);
+		hMouseHook = NULL;
+	}
+	if (hKbdHook)
+	{
+		UnhookWindowsHookEx(hKbdHook);
+		hKbdHook = NULL;
 	}
 }
 
 bool is_hook_installed()
 {
-	if (hHook)
+	if (hMouseHook)
 	{
 		return true;
 	}

@@ -37,8 +37,8 @@ IDI_DISABLED            ICON                    "disabled.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,2,0,0
- PRODUCTVERSION 0,2,0,0
+ FILEVERSION 0,3,0,0
+ PRODUCTVERSION 0,3,0,0
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -54,12 +54,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "No-Wheel"
-            VALUE "FileVersion", "0.2.0.0"
+            VALUE "FileVersion", "0.3.0.0"
             VALUE "InternalName", "no-wheel.exe"
             VALUE "LegalCopyright", "Copyright (C) 2017 Tordex"
             VALUE "OriginalFilename", "no-wheel.exe"
             VALUE "ProductName", "No-Wheel"
-            VALUE "ProductVersion", "0.2.0.0"
+            VALUE "ProductVersion", "0.3.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -74,9 +74,9 @@ END
 // Bitmap
 //
 
-circle-48               BITMAP                  "circle-48.bmp"
-circle-32               BITMAP                  "circle-32.bmp"
-circle-16               BITMAP                  "circle-16.bmp"
+CIRCLE-48               BITMAP                  "circle-48.bmp"
+CIRCLE-32               BITMAP                  "circle-32.bmp"
+CIRCLE-16               BITMAP                  "circle-16.bmp"
 #endif    // Neutral (Default) resources
 /////////////////////////////////////////////////////////////////////////////
 

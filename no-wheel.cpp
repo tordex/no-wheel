@@ -5,20 +5,14 @@
 #include <shlobj.h>
 #include <strsafe.h>
 
-/*
-#pragma optimize("gsy",on)
-#pragma comment(linker,"/MERGE:.rdata=.text")
-#pragma comment(linker, "/SECTION:.text,EWR")
-#pragma comment(linker,"/NODEFAULTLIB")
-*/
-//#pragma comment(linker,"/ENTRY:New_WinMain")
-
 HINSTANCE hInst;
 BOOL loadAtStartup;
 BOOL stopCursor;
 BOOL showMouse;
 int  circleSize;
 int  circleColor;
+int kbdLClick;
+int kbdRClick;
 WCHAR settings_path[MAX_PATH];
 
 struct
@@ -69,6 +63,8 @@ void load_settings()
 	circleSize = GetPrivateProfileInt(L"settings", L"circleSize", 0, path);
 	circleColor = GetPrivateProfileInt(L"settings", L"circleColor", 0, path);
 	showMouse = GetPrivateProfileInt(L"settings", L"showMouse", 0, path);
+	kbdLClick = GetPrivateProfileInt(L"settings", L"kbdLClick", 0, path);
+	kbdRClick = GetPrivateProfileInt(L"settings", L"kbdRClick", 0, path);
 }
 
 void save_settings()
@@ -83,6 +79,8 @@ void save_settings()
 	WritePrivateProfileString(L"settings", L"circleSize", _itow(circleSize, str, 10), path);
 	WritePrivateProfileString(L"settings", L"circleColor", _itow(circleColor, str, 10), path);
 	WritePrivateProfileString(L"settings", L"showMouse", _itow(showMouse, str, 10), path);
+	WritePrivateProfileString(L"settings", L"kbdLClick", _itow(kbdLClick, str, 10), path);
+	WritePrivateProfileString(L"settings", L"kbdRClick", _itow(kbdRClick, str, 10), path);
 }
 
 
@@ -276,6 +274,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					InsertMenu(hMenu, -1, MF_SEPARATOR, 0, L"");
 					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_STRING | (stopCursor ? MF_CHECKED : 0), MID_STOPCURSOR, L"Freeze Cursor");
 					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_STRING | (showMouse ? MF_CHECKED : 0), MID_SHOWMOUSE, L"Show Mouse Circle");
+
+					HMENU submenu = CreatePopupMenu();
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_NONE ? MF_CHECKED : 0), MID_LCLICK + KBD_CLICK_NONE, L"None");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_SCROLL ? MF_CHECKED : 0), MID_LCLICK + KBD_CLICK_SCROLL, L"Scroll Lock");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RSHIFT ? MF_CHECKED : 0), MID_LCLICK + KBD_CLICK_RSHIFT, L"Right Shift");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RCTRL ? MF_CHECKED : 0), MID_LCLICK + KBD_CLICK_RCTRL, L"Right Ctrl");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RALT ? MF_CHECKED : 0), MID_LCLICK + KBD_CLICK_RALT, L"Right Alt");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_PAUSE ? MF_CHECKED : 0), MID_LCLICK + KBD_CLICK_PAUSE, L"Pause");
+					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_POPUP, (UINT_PTR)submenu, L"Left Click");
+
+					submenu = CreatePopupMenu();
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_NONE ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_NONE, L"None");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_SCROLL ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_SCROLL, L"Scroll Lock");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RSHIFT ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RSHIFT, L"Right Shift");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RCTRL ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RCTRL, L"Right Ctrl");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RALT ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RALT, L"Right Alt");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_PAUSE ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_PAUSE, L"Pause");
+					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_POPUP, (UINT_PTR)submenu, L"Right Click");
+
 					if (showMouse)
 					{
 						InsertMenu(hMenu, -1, MF_SEPARATOR, 0, L"");
@@ -376,6 +393,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							circleColor = ret - MID_CIRCLE_COLOR;
 							destroy_mouse_wnd();
 							create_mouse_wnd(circleSize, circle_colors[circleColor].color);
+							save_settings();
+						}
+						else if (ret >= MID_LCLICK && ret < MID_LCLICK + 100)
+						{
+							kbdLClick = ret - MID_LCLICK;
+							save_settings();
+						}
+						else if (ret >= MID_RCLICK && ret < MID_RCLICK + 100)
+						{
+							kbdRClick = ret - MID_RCLICK;
 							save_settings();
 						}
 					}
