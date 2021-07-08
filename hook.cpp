@@ -6,7 +6,7 @@ int diff = 0;
 
 LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-	if (nCode >= 0)
+	if (nCode >= 0 && enableApp)
 	{
 		LPKBDLLHOOKSTRUCT hookData = (LPKBDLLHOOKSTRUCT)lParam;
 		switch (wParam)
@@ -26,6 +26,13 @@ LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				mouse_event(MOUSEEVENTF_RIGHTDOWN, ptCursor.x, ptCursor.y, 0, NULL);
 				return TRUE;
 			}
+			else if (MCLickVK() == hookData->vkCode)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				mouse_event(MOUSEEVENTF_MIDDLEDOWN, ptCursor.x, ptCursor.y, 0, NULL);
+				return TRUE;
+			}
 			break;
 		case WM_KEYUP:
 			if (LCLickVK() == hookData->vkCode)
@@ -42,6 +49,13 @@ LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				mouse_event(MOUSEEVENTF_RIGHTUP, ptCursor.x, ptCursor.y, 0, NULL);
 				return TRUE;
 			}
+			else if (MCLickVK() == hookData->vkCode)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				mouse_event(MOUSEEVENTF_MIDDLEUP, ptCursor.x, ptCursor.y, 0, NULL);
+				return TRUE;
+			}
 			break;
 		}
 	}
@@ -53,36 +67,57 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 	if(nCode >= 0)
 	{
 		LPMSLLHOOKSTRUCT lpMouse = (LPMSLLHOOKSTRUCT) lParam;
-		if(wParam == WM_MOUSEMOVE)
+		switch (wParam)
 		{
-			POINT pt = lpMouse->pt;
-			if ((GetKeyState(VK_RBUTTON) & 0x8000) && (GetKeyState(VK_LBUTTON) & 0x8000))
+		case WM_MBUTTONDOWN:
+			if (mapMiddleToRightButton)
 			{
 				POINT ptCursor;
 				GetCursorPos(&ptCursor);
-				if (ptCursor.y != pt.y)
+				PostMessage(hWndMain, WM_MIDDLE_DOWN, ptCursor.x, ptCursor.y);
+				return TRUE;
+			}
+		case WM_MBUTTONUP:
+			if (mapMiddleToRightButton)
+			{
+				POINT ptCursor;
+				GetCursorPos(&ptCursor);
+				PostMessage(hWndMain, WM_MIDDLE_UP, ptCursor.x, ptCursor.y);
+				return TRUE;
+			}
+		case WM_MOUSEMOVE:
+			if (enableApp)
+			{
+				POINT pt = lpMouse->pt;
+				if ((GetKeyState(VK_RBUTTON) & 0x8000) && (GetKeyState(VK_LBUTTON) & 0x8000))
 				{
-					diff += ptCursor.y < pt.y ? pt.y - ptCursor.y : ptCursor.y - pt.y;
-					if (diff > 10)
+					POINT ptCursor;
+					GetCursorPos(&ptCursor);
+					if (ptCursor.y != pt.y)
 					{
-						diff = 0;
-						int delta = WHEEL_DELTA;
-						if (ptCursor.y < pt.y)
+						diff += ptCursor.y < pt.y ? pt.y - ptCursor.y : ptCursor.y - pt.y;
+						if (diff > 10)
 						{
-							delta = -WHEEL_DELTA;
+							diff = 0;
+							int delta = WHEEL_DELTA;
+							if (ptCursor.y < pt.y)
+							{
+								delta = -WHEEL_DELTA;
+							}
+							mouse_event(MOUSEEVENTF_WHEEL, ptCursor.x, ptCursor.y, (DWORD)delta, NULL);
 						}
-						mouse_event(MOUSEEVENTF_WHEEL, ptCursor.x, ptCursor.y, (DWORD) delta, NULL);
+					}
+					if (stopCursor)
+					{
+						return TRUE;
 					}
 				}
-				if (stopCursor)
+				else
 				{
-					return TRUE;
+					diff = 0;
 				}
 			}
-			else
-			{
-				diff = 0;
-			}
+			break;
 		}
 	}
 

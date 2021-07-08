@@ -6,6 +6,7 @@
 #include <strsafe.h>
 
 HINSTANCE hInst;
+HWND hWndMain;
 BOOL loadAtStartup;
 BOOL stopCursor;
 BOOL showMouse;
@@ -13,7 +14,10 @@ int  circleSize;
 int  circleColor;
 int kbdLClick;
 int kbdRClick;
+int kbdMClick;
+BOOL mapMiddleToRightButton;
 WCHAR settings_path[MAX_PATH];
+BOOL enableApp;
 
 struct
 {
@@ -65,6 +69,8 @@ void load_settings()
 	showMouse = GetPrivateProfileInt(L"settings", L"showMouse", 0, path);
 	kbdLClick = GetPrivateProfileInt(L"settings", L"kbdLClick", 0, path);
 	kbdRClick = GetPrivateProfileInt(L"settings", L"kbdRClick", 0, path);
+	kbdMClick = GetPrivateProfileInt(L"settings", L"kbdMClick", 0, path);
+	mapMiddleToRightButton = GetPrivateProfileInt(L"settings", L"MiddleToRight", 0, path);
 }
 
 void save_settings()
@@ -81,6 +87,8 @@ void save_settings()
 	WritePrivateProfileString(L"settings", L"showMouse", _itow(showMouse, str, 10), path);
 	WritePrivateProfileString(L"settings", L"kbdLClick", _itow(kbdLClick, str, 10), path);
 	WritePrivateProfileString(L"settings", L"kbdRClick", _itow(kbdRClick, str, 10), path);
+	WritePrivateProfileString(L"settings", L"kbdMClick", _itow(kbdMClick, str, 10), path);
+	WritePrivateProfileString(L"settings", L"MiddleToRight", _itow(mapMiddleToRightButton, str, 10), path);
 }
 
 
@@ -118,6 +126,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	}
 
 	start_hook();
+	enableApp = TRUE;
 
 	if (showMouse)
 	{
@@ -179,14 +188,12 @@ void noweel_register_classes(HINSTANCE hInstance)
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   HWND hWnd;
-
    hInst = hInstance;
 
-   hWnd = CreateWindow(NOWHEEL_CLASS, L"No-Wheel", 0,
+   hWndMain = CreateWindow(NOWHEEL_CLASS, L"No-Wheel", 0,
       0, 0, 0, 0, NULL, NULL, hInstance, NULL);
 
-   if (!hWnd)
+   if (!hWndMain)
    {
       return FALSE;
    }
@@ -202,7 +209,7 @@ void update_tray_icon(HWND hWnd)
 	nd.hWnd = hWnd;
 	nd.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 	nd.uCallbackMessage = WM_TRAYNOTIFY;
-	if (is_hook_installed())
+	if (enableApp)
 	{
 		nd.hIcon = (HICON)LoadImage((HINSTANCE)GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_TRUEMOUSEWHEEL), IMAGE_ICON, 16, 16, LR_LOADTRANSPARENT | LR_DEFAULTCOLOR);
 	}
@@ -241,6 +248,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message) 
 	{
+	case WM_MIDDLE_DOWN:
+		{
+			mouse_event(MOUSEEVENTF_RIGHTDOWN, wParam, lParam, 0, NULL);
+		}
+		break;
+	case WM_MIDDLE_UP:
+		{
+			mouse_event(MOUSEEVENTF_RIGHTUP, wParam, lParam, 0, NULL);
+		}
+		break;
 	case WM_TIMER:
 		SetProcessWorkingSetSize (GetCurrentProcess (), -1, -1);
 		break;
@@ -256,13 +273,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			switch(msg)
 			{
 			case WM_LBUTTONUP:
-				if (is_hook_installed())
+				if (enableApp)
 				{
-					stop_hook();
+					enableApp = FALSE;
 				}
 				else
 				{
-					start_hook();
+					enableApp = TRUE;
 				}
 				update_tray_icon(hWnd);
 				break;
@@ -285,13 +302,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_POPUP, (UINT_PTR)submenu, L"Left Click");
 
 					submenu = CreatePopupMenu();
-					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_NONE ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_NONE, L"None");
-					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_SCROLL ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_SCROLL, L"Scroll Lock");
-					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RSHIFT ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RSHIFT, L"Right Shift");
-					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RCTRL ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RCTRL, L"Right Ctrl");
-					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_RALT ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RALT, L"Right Alt");
-					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdLClick == KBD_CLICK_PAUSE ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_PAUSE, L"Pause");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdRClick == KBD_CLICK_NONE ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_NONE, L"None");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdRClick == KBD_CLICK_SCROLL ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_SCROLL, L"Scroll Lock");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdRClick == KBD_CLICK_RSHIFT ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RSHIFT, L"Right Shift");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdRClick == KBD_CLICK_RCTRL ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RCTRL, L"Right Ctrl");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdRClick == KBD_CLICK_RALT ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_RALT, L"Right Alt");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdRClick == KBD_CLICK_PAUSE ? MF_CHECKED : 0), MID_RCLICK + KBD_CLICK_PAUSE, L"Pause");
 					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_POPUP, (UINT_PTR)submenu, L"Right Click");
+
+					submenu = CreatePopupMenu();
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdMClick == KBD_CLICK_NONE ? MF_CHECKED : 0), MID_MCLICK + KBD_CLICK_NONE, L"None");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdMClick == KBD_CLICK_SCROLL ? MF_CHECKED : 0), MID_MCLICK + KBD_CLICK_SCROLL, L"Scroll Lock");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdMClick == KBD_CLICK_RSHIFT ? MF_CHECKED : 0), MID_MCLICK + KBD_CLICK_RSHIFT, L"Right Shift");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdMClick == KBD_CLICK_RCTRL ? MF_CHECKED : 0), MID_MCLICK + KBD_CLICK_RCTRL, L"Right Ctrl");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdMClick == KBD_CLICK_RALT ? MF_CHECKED : 0), MID_MCLICK + KBD_CLICK_RALT, L"Right Alt");
+					InsertMenu(submenu, -1, MF_BYPOSITION | MF_STRING | MFT_RADIOCHECK | (kbdMClick == KBD_CLICK_PAUSE ? MF_CHECKED : 0), MID_MCLICK + KBD_CLICK_PAUSE, L"Pause");
+					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_POPUP, (UINT_PTR)submenu, L"Middle Click");
 
 					if (showMouse)
 					{
@@ -306,8 +332,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							InsertMenu(hMenu, -1, MF_BYPOSITION | MF_STRING | ((circleColor == cmd - MID_CIRCLE_COLOR) ? MF_CHECKED : 0), cmd, clr.name);
 							cmd++;
 						}
-						InsertMenu(hMenu, -1, MF_SEPARATOR, 0, L"");
 					}
+					InsertMenu(hMenu, -1, MF_SEPARATOR, 0, L"");
+					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_STRING | (mapMiddleToRightButton ? MF_CHECKED : 0), MID_MIDDLE_TO_RIGHT, L"Map Middle to Right button");
+					InsertMenu(hMenu, -1, MF_SEPARATOR, 0, L"");
 					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_STRING | (loadAtStartup ? MF_CHECKED : 0), MID_STARTUP, L"Run on startup");
 					InsertMenu(hMenu, -1, MF_SEPARATOR, 0, L"");
 					InsertMenu(hMenu, -1, MF_BYPOSITION | MF_STRING, MID_EXIT, L"Exit");
@@ -318,6 +346,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					DestroyMenu(hMenu);
 					switch(ret)
 					{
+					case MID_MIDDLE_TO_RIGHT:
+						if (mapMiddleToRightButton)
+						{
+							mapMiddleToRightButton = FALSE;
+						}
+						else
+						{
+							mapMiddleToRightButton = TRUE;
+						}
+						save_settings();
+						break;
 					case MID_WEBSITE:
 						ShellExecute(hWnd, NULL, L"http://www.tordex.com/", NULL, NULL, SW_SHOW);
 						break;
@@ -403,6 +442,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						else if (ret >= MID_RCLICK && ret < MID_RCLICK + 100)
 						{
 							kbdRClick = ret - MID_RCLICK;
+							save_settings();
+						}
+						else if (ret >= MID_MCLICK && ret < MID_MCLICK + 100)
+						{
+							kbdMClick = ret - MID_MCLICK;
 							save_settings();
 						}
 					}
